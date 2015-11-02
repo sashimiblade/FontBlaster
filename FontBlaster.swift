@@ -47,10 +47,16 @@ public class FontBlaster {
     /**
         Load all fonts found in a specific bundle. If no value is entered, it defaults to NSBundle.mainBundle().
     */
-    public class func blast(bundle: NSBundle = NSBundle.mainBundle()) {
+    public class func blast(bundle: NSBundle = NSBundle.mainBundle()) -> [UIFontDescriptor] {
         let path = bundle.bundlePath
-        loadFontsForBundleWithPath(path)
-        loadFontsFromBundlesFoundInBundle(path)
+        var loadedFonts = [Font]()
+        loadedFonts += loadFontsForBundleWithPath(path)
+        loadedFonts += loadFontsFromBundlesFoundInBundle(path)
+        let uiFonts = loadedFonts.map() { loadedFont -> UIFontDescriptor in
+            let uiFont = UIFontDescriptor(fontAttributes: [UIFontDescriptorNameAttribute : loadedFont.1])
+            return uiFont
+        }
+        return uiFonts
     }
 }
 
@@ -61,7 +67,7 @@ private extension FontBlaster {
     
         - parameter path: The absolute path to the bundle.
     */
-    class func loadFontsForBundleWithPath(path: String) {
+    class func loadFontsForBundleWithPath(path: String) -> [Font] {
         do {
             let contents = try NSFileManager.defaultManager().contentsOfDirectoryAtPath(path)
             let fonts = fontsFromPath(path: path, contents: contents)
@@ -69,12 +75,14 @@ private extension FontBlaster {
                 for font in fonts {
                     loadFont(font)
                 }
+                return fonts
             } else {
                 printStatus("No fonts were found in the bundle path: \(path).")
             }
         } catch let error as NSError {
             printStatus("There was an error loading fonts from the bundle. \nPath: \(path).\nError: \(error)")
         }
+        return []
     }
     
     /**
@@ -82,20 +90,23 @@ private extension FontBlaster {
         
         - parameter path: The absolute path to the bundle.
     */
-    class func loadFontsFromBundlesFoundInBundle(path: String) {
+    class func loadFontsFromBundlesFoundInBundle(path: String) -> [Font] {
         do {
             let contents = try NSFileManager.defaultManager().contentsOfDirectoryAtPath(path)
+            var loadedFonts = [Font]()
             for item in contents {
                 if let url = NSURL(string: path) {
                     if item.containsString(".bundle") {
                         let urlPath = url.URLByAppendingPathComponent(item)
-                        loadFontsForBundleWithPath(urlPath.absoluteString)
+                        loadedFonts += loadFontsForBundleWithPath(urlPath.absoluteString)
                     }
                 }
             }
+            return loadedFonts
         } catch let error as NSError {
             printStatus("There was an error accessing bundle with path. \nPath: \(path).\nError: \(error)")
         }
+        return []
     }
     
     /**
